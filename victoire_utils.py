@@ -3,9 +3,9 @@ import jsbsim
 import mpl_toolkits.basemap
 import pdb
 
-import pat3.plot_utils as p3_pu
+import pat3.plot_utils as p3_pu, pat3.atmosphere as p3_atm
 
-
+# format of the csv file
 columns = ['Time', 'ALTITUDE STD [FT] [FT]', 'COMPUTED AIRSPEED [KT] [KT]',
            'CAPT DISPLAY PITCH ATT (>0= nose up) [DEG]', 'CAPT DISPLAY HEADING [DEG]',
            'CAPT DISPLAY ROLL ATT (>0 = right wing down) [DEG]',
@@ -13,9 +13,11 @@ columns = ['Time', 'ALTITUDE STD [FT] [FT]', 'COMPUTED AIRSPEED [KT] [KT]',
            'LATERAL ACCELERATION [G] (>0 = left side slip) [G\'s]',
            'VERTICAL ACCELERATION (>0 = nose up) [G]',
            '(FDR) Longitude [°]', '(FDR) Latitude [°]']
-
+c_time, c_alt, c_va, c_theta, c_psi, c_phi, c_ax, c_ay, c_az, c_lon, c_lat, c_nb = range(12)
+# sensor's characteristics
 freqs = [1., 1.,  4., 2., 4., 4., 4., 8., 1., 1.]
 stds =  [2., 0.8, 0., 0., 0., 0., 0., 0., 0., 0.]
+
 
 def plot_chronograms(traj_df):
     fig = plt.figure(tight_layout=True, figsize=[16., 9.])
@@ -28,8 +30,10 @@ def plot_chronograms(traj_df):
     return fig, axes
 
 def plot_map(traj_df):
+    # find trajectory's extends
     lon_min, lon_max = traj_df.min()[columns[-2]], traj_df.max()[columns[-2]] 
     lat_min, lat_max = traj_df.min()[columns[-1]], traj_df.max()[columns[-1]]
+    # add margin
     lon_min -=0.5; lon_max +=0.5
     lat_min -=0.5; lat_max +=0.5
     fig = plt.figure(tight_layout=True, figsize=[16., 9.])
@@ -38,9 +42,9 @@ def plot_map(traj_df):
                                      rsphere=(6378137.00,6356752.3142),\
                                      resolution='l',projection='merc',\
                                      lat_0=lat_min,lon_0=lon_min,lat_ts=20.)
-    xx, yy = traj_df[columns[-2]].dropna().to_numpy(), traj_df[columns[-1]].dropna().to_numpy()
+    longs, lats = traj_df[columns[-2]].dropna().to_numpy(), traj_df[columns[-1]].dropna().to_numpy()
     #pdb.set_trace()
-    m.plot(xx,yy,color='r', latlon=True)
+    m.plot(longs, lats, color='r', latlon=True)
     
     #m.drawgreatcircle(lon_min,lat_min, lon_max,lat_max, linewidth=2,color='b')
     m.drawcoastlines()
@@ -55,7 +59,7 @@ def _analyse_sensor_timing(traj_df):
     for i in range(len(traj_df.columns)-1):
         col = traj_df[traj_df.columns[i+1]]
         ts = traj_df['Time'][np.isfinite(col)].to_numpy()
-        dts.append(ts[1:] - ts[:-1])
+        dts.append(ts[1:]-ts[:-1]) # compute sampling intervals
         dts_spec.append((np.mean(dts[-1]), np.std(dts[-1])))
         #print(f'{traj_df.columns[i+1]}: {dts_spec[-1][0]:.3f} s {1./dts_spec[-1][0]:.3f} hz')
     return dts, dts_spec
@@ -78,7 +82,7 @@ def analyse_sensor(traj_df, sid, roi):
    p3_pu.decorate(axes[2], 'Samples distribution', legend=[f'std:{std}\nmean:{mean}'])
    return fig, axes
 
-# running fdm without a script
+# running fdm without a script... bleee
 def run_simulation(tf=100.):
     PATH_TO_JSBSIM_FILES="/home/poine/src/jsbsim"
     fdm = jsbsim.FGFDMExec(PATH_TO_JSBSIM_FILES)
@@ -117,15 +121,17 @@ def run_simulation(tf=100.):
     return fdm, res
 
 
-# running fdm with a script
+# running fdm with a script, yay!!!
 def run_simulation2(script_filename, tf):
     PATH_TO_JSBSIM_FILES="/home/poine/src/jsbsim"
-    fdm = jsbsim.FGFDMExec(PATH_TO_JSBSIM_FILES)
+    fdm = jsbsim.FGFDMExec(PATH_TO_JSBSIM_FILES) # this is needed for aircraft definitions ?
     fdm.load_script(script_filename)
 
+    atm = p3_atm.AtmosphereCstWind()
+    
     dt = fdm.get_delta_t()
     time = np.arange(0, tf, dt)
-    res = np.zeros((len(time), 11))
+    res = np.zeros((len(time), c_nb))
     fdm.run_ic()
 
     i=0
@@ -134,10 +140,13 @@ def run_simulation2(script_filename, tf):
         vels = fdm['velocities/vc-kts'], fdm['aero/alpha-deg']
         euls = fdm['attitude/phi-deg'], fdm['attitude/theta-deg'], fdm['attitude/psi-deg']
         accels = fdm['accelerations/Nx'], fdm['accelerations/Ny'], fdm['accelerations/Nz']
+        wind_ned = (0, 0, 0)#atm.get_wind_ned((0, 0, 0), 0)
+        #for i, wcmp in enumerate(['atmosphere/wind-north-fps', 'atmosphere/wind-east-fps', 'atmosphere/wind-down-fps']):
+        #    fdm[wcmp] = wind_ned[i]
         res[i] = fdm.get_sim_time(), lla[2], vels[0], euls[1], euls[2], euls[0], *accels, lla[0], lla[1]
         i+=1
 
-    if i < len(res):
+    if i < len(res): # truncate
         res = res[:i]
         print('finished early')
     return fdm, res

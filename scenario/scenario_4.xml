@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="http://jsbsim.sf.net/JSBSimScript.xsl"?>
+<runscript xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="http://jsbsim.sf.net/JSBSimScript.xsd"
+    name="Montpellier - Nantes">
+    
+  <description>For testing autopilot capability</description>
+  <use aircraft="c310" initialize="toulouse_32L"/>
+  
+  <run start="0.0" end="10800" dt="0.02">
+
+  <event name="Start engine">
+      <description>
+        Start engine and set initial heading and waypoints, turn on heading-hold mode.
+      </description>
+      <condition>simulation/sim-time-sec  ge  0.25</condition>
+      <set name="fcs/mixture-cmd-norm[0]" value="1"/>
+      <set name="fcs/mixture-cmd-norm[1]" value="1"/>
+      <set name="fcs/advance-cmd-norm[0]" value="1.0"/>
+      <set name="fcs/advance-cmd-norm[1]" value="1.0"/>
+      <set name="propulsion/magneto_cmd" value="3"/>
+      <set name="fcs/throttle-cmd-norm[0]" value="1.0"/>
+      <set name="fcs/throttle-cmd-norm[1]" value="1.0"/>
+      <set name="propulsion/starter_cmd" value="1"/>
+      <!--<set name="ap/altitude_setpoint" action="FG_EXP" value="5000" tc="10.0"/>-->
+      <set name="ap/altitude_setpoint" value="5000"/>
+      <set name="ap/attitude_hold" value="0"/>
+      <set name="guidance/target_wp_latitude_rad" value="0.7750746630449494"/>
+      <set name="guidance/target_wp_longitude_rad" value="0.04330945527032077"/>
+      <set name="ap/heading_setpoint" value="0"/>
+      <set name="ap/heading-setpoint-select" value="0"/>
+      <set name="ap/heading_hold" value="1"/>
+      <set name="ap/active-waypoint" value="0"/>
+      <notify format="kml">
+        <property caption="Latitude       "> position/lat-geod-deg </property>
+        <property caption="Longitude      "> position/long-gc-deg </property>
+        <property caption="Airspeed (keas)"> velocities/ve-kts </property>
+      </notify>
+    </event>
+
+    <event name="Enable altitude hold (preconfigured to 5000 ft).">
+      <condition>velocities/vc-fps ge 145.0</condition>
+      <set name="ap/altitude_hold" value="1"/>
+      <notify format="kml">
+        <property caption="Latitude       "> position/lat-geod-deg </property>
+        <property caption="Longitude      "> position/long-gc-deg </property>
+        <property caption="Airspeed (keas)"> velocities/ve-kts </property>
+      </notify>
+    </event>
+    
+    <event name="Raise landing gear">
+      <condition>position/h-agl-ft  ge  40</condition>
+      <set name="gear/gear-cmd-norm" value="0"/>
+      <notify format="kml">
+        <property caption="Latitude       "> position/lat-geod-deg </property>
+        <property caption="Longitude      "> position/long-gc-deg </property>
+        <property caption="Airspeed (keas)"> velocities/ve-kts </property>
+      </notify>
+    </event>
+    
+    <event name="Head to first waypoint">
+      <description>
+        Set heading hold to selected waypoint (setpoint) instead of
+        previously specified heading when altitude surpasses 800 feet.
+      </description>
+      <condition>position/h-agl-ft  ge  800</condition>
+      <set name="ap/heading-setpoint-select" value="1"/>
+      <set name="ap/active-waypoint" value="1"/>
+      <notify format="kml">
+        <property caption="Latitude        "> position/lat-geod-deg </property>
+        <property caption="Longitude       "> position/long-gc-deg  </property>
+        <property caption="Altitude        "> position/h-agl-ft     </property>
+        <property caption="Airspeed (keas) "> velocities/ve-kts     </property>
+        <property caption="Distance to WP  "> guidance/wp-distance  </property>
+      </notify>
+    </event>
+
+    <event name="Set waypoint 5">
+      <description>
+        When closer than 700.0 feet to waypoint 4 LFGY, set waypoint 5 LFST.
+        and alt 1000 feet
+      </description>
+      <condition>
+        guidance/wp-distance lt 700
+        ap/active-waypoint eq 4
+      </condition>
+      <!--<set name="ap/altitude_setpoint" action="FG_EXP" value="1000.0" tc="10.0"/>-->
+      <set name="ap/altitude_setpoint" value="1000.0"/>
+      <set name="guidance/target_wp_latitude_rad" value="0.8471444216745037"/>
+      <set name="guidance/target_wp_longitude_rad" value="0.1331194036422611"/>
+      <set name="ap/active-waypoint" value="5"/>
+      <notify format="kml">
+        <property caption="Latitude        "> position/lat-geod-deg </property>
+        <property caption="Longitude       "> position/long-gc-deg  </property>
+        <property caption="Altitude        "> position/h-agl-ft     </property>
+        <property caption="Airspeed (keas) "> velocities/ve-kts     </property>
+        <property caption="Distance to WP  "> guidance/wp-distance  </property>
+      </notify>
+
+    </event>
+
+    <event name="Set waypoint 4">
+      <description>
+        When closer than 700.0 feet to waypoint 3 DJL_Dijon, set waypoint 4 LFGY.
+        and alt 3000 feet
+      </description>
+      <condition>
+        guidance/wp-distance lt 700
+        ap/active-waypoint eq 3
+      </condition>
+      <!--<set name="ap/altitude_setpoint" action="FG_EXP" value="3000.0" tc="10.0"/>-->
+      <set name="ap/altitude_setpoint" value="3000.0"/>
+      <set name="guidance/target_wp_latitude_rad" value="0.8424102684383467"/>
+      <set name="guidance/target_wp_longitude_rad" value="0.12230719364591135"/>
+      <set name="ap/active-waypoint" value="4"/>
+      <notify format="kml">
+        <property caption="Latitude        "> position/lat-geod-deg </property>
+        <property caption="Longitude       "> position/long-gc-deg  </property>
+        <property caption="Altitude        "> position/h-agl-ft     </property>
+        <property caption="Airspeed (keas) "> velocities/ve-kts     </property>
+        <property caption="Distance to WP  "> guidance/wp-distance  </property>
+      </notify>
+
+    </event>
+
+    <event name="Set waypoint 3">
+      <description>
+        When closer than 700.0 feet to waypoint 2 LFLN_SAINT_YAN, set waypoint 3 DJL_Dijon.
+        and alt 15000 feet
+      </description>
+      <condition>
+        guidance/wp-distance lt 700
+        ap/active-waypoint eq 2
+      </condition>
+      <!--<set name="ap/altitude_setpoint" action="FG_EXP" value="15000.0" tc="10.0"/>-->
+      <set name="ap/altitude_setpoint" value="15000.0"/>
+      <set name="guidance/target_wp_latitude_rad" value="0.8249824053656049"/>
+      <set name="guidance/target_wp_longitude_rad" value="0.08891899269538227"/>
+      <set name="ap/active-waypoint" value="3"/>
+      <notify format="kml">
+        <property caption="Latitude        "> position/lat-geod-deg </property>
+        <property caption="Longitude       "> position/long-gc-deg  </property>
+        <property caption="Altitude        "> position/h-agl-ft     </property>
+        <property caption="Airspeed (keas) "> velocities/ve-kts     </property>
+        <property caption="Distance to WP  "> guidance/wp-distance  </property>
+      </notify>
+
+    </event>
+
+    <event name="Set waypoint 2">
+      <description>
+        When closer than 700.0 feet to waypoint 1 RODEZ_RZ387, set waypoint 2 LFLN_SAINT_YAN.
+        and alt 10000 feet
+      </description>
+      <condition>
+        guidance/wp-distance lt 700
+        ap/active-waypoint eq 1
+      </condition>
+      <!--<set name="ap/altitude_setpoint" action="FG_EXP" value="10000.0" tc="10.0"/>-->
+      <set name="ap/altitude_setpoint" value="10000.0"/>
+      <set name="guidance/target_wp_latitude_rad" value="0.8100920066791676"/>
+      <set name="guidance/target_wp_longitude_rad" value="0.0700500810724389"/>
+      <set name="ap/active-waypoint" value="2"/>
+      <notify format="kml">
+        <property caption="Latitude        "> position/lat-geod-deg </property>
+        <property caption="Longitude       "> position/long-gc-deg  </property>
+        <property caption="Altitude        "> position/h-agl-ft     </property>
+        <property caption="Airspeed (keas) "> velocities/ve-kts     </property>
+        <property caption="Distance to WP  "> guidance/wp-distance  </property>
+      </notify>
+
+    </event>
+
+    <event name="Terminate">
+      <description>
+        Terminate simulation when the aircraft reaches last waypoint.
+      </description>
+      <condition>
+        guidance/wp-distance lt 500
+        ap/active-waypoint eq 5
+      </condition>
+      <set name="simulation/terminate" value="1"/>
+      <notify format="kml">
+        <property caption="Latitude       "> position/lat-geod-deg </property>
+        <property caption="Longitude      "> position/long-gc-deg </property>
+        <property caption="Airspeed (keas)"> velocities/ve-kts </property>
+      </notify>
+    </event>
+  </run>
+</runscript>

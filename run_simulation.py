@@ -11,8 +11,9 @@ import pdb
 #import pat3.plot_utils as p3_pu
 import victoire_utils as v_ut
 
+
+# Sensor model
 class Sensors:
-    # run sensors simulation
     def run(fdm, truth, in_place=True):
         sensors = np.array(truth) if not in_place else truth
         # decimate
@@ -30,12 +31,12 @@ class Sensors:
         return sensors
 
 
-
+import create_scenario as cscen
 def main(scen_filename):
     # run aircraft simulation
     #fdm, res = v_ut.run_simulation(tf=120.)
     #fdm, res = v_ut.run_simulation2('/home/poine/src/jsbsim/scripts/c3104.xml', tf=600.)
-    fdm, res = v_ut.run_simulation2(scen_filename, tf=2000.)
+    fdm, res, _dbg = v_ut.run_simulation2(scen_filename, tf=10800., dbg=True)
 
     truth_df = pd.DataFrame(res, index=res[:,0], columns=v_ut.columns)
 
@@ -48,11 +49,14 @@ def main(scen_filename):
 
     if 1:
         fig, axes = v_ut.plot_chronograms(sens_df); plt.savefig('/tmp/c310_chrono.png')
-    if 1:
+        fig, axes = v_ut.plot_dbg(sens_df, _dbg)
+    if 0:
         sid, roi = 0, slice(4000,8000)
         fig, axes = v_ut.analyse_sensor(sens_df, sid, roi); plt.savefig('/tmp/c310_alt.png')
     if 1:
-        v_ut.plot_map(sens_df); plt.savefig('/tmp/c310_map.png')
+        _s = cscen.Scenario1()
+        v_ut.plot_map(sens_df, _s)
+        plt.savefig('/tmp/c310_map.png')
     
     plt.show()
 

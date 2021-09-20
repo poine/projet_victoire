@@ -19,6 +19,16 @@ freqs = [1., 1.,  4., 2., 4., 4., 4., 8., 1., 1.]
 stds =  [2., 0.8, 0., 0., 0., 0., 0., 0., 0., 0.]
 
 
+# plot autopilot inner variables
+def plot_dbg(traj_df, dbg):
+    fig = plt.figure(tight_layout=True, figsize=[16., 9.])
+    nplots = 4
+    axes = fig.subplots(nplots, 1, sharex=True)
+    for i in range(nplots):
+        axes[i].plot(traj_df['Time'], dbg[:,i], '.')
+    return fig, axes
+    
+
 def plot_chronograms(traj_df):
     fig = plt.figure(tight_layout=True, figsize=[16., 9.])
     nplots = len(traj_df.columns)-1
@@ -26,10 +36,10 @@ def plot_chronograms(traj_df):
     for i in range(nplots):
         axes[i].plot(traj_df['Time'], traj_df[traj_df.columns[i+1]], '.')
         p3_pu.decorate(axes[i], legend=[traj_df.columns[i+1]])
-    axes[-1].yaxis.set_label_text('time in s')
+    axes[-1].xaxis.set_label_text('time in s')
     return fig, axes
 
-def plot_map(traj_df):
+def plot_map(traj_df, _scen=None):
     # find trajectory's extends
     lon_min, lon_max = traj_df.min()[columns[-2]], traj_df.max()[columns[-2]] 
     lat_min, lat_max = traj_df.min()[columns[-1]], traj_df.max()[columns[-1]]
@@ -42,12 +52,29 @@ def plot_map(traj_df):
                                      rsphere=(6378137.00,6356752.3142),\
                                      resolution='l',projection='merc',\
                                      lat_0=lat_min,lon_0=lon_min,lat_ts=20.)
+    if _scen is not None:
+        for _wp, _n in zip(_scen.waypoints, _scen.wp_names):
+            x, y = m(_wp[1], _wp[0])
+            print(_wp, x, y)
+            x2, y2 = (-20, 10)
+            # plt.text(x, y, _n,fontsize=12,fontweight='bold',
+            #          ha='left',va='center',color='k',
+            #          bbox=dict(facecolor='b', alpha=0.2))
+            plt.annotate(_n, xy=(x, y),  xycoords='data',
+                         xytext=(x2, y2), textcoords='offset points',
+                         color='r',
+                         arrowprops=dict(arrowstyle="fancy", color='g')
+            )
+
     longs, lats = traj_df[columns[-2]].dropna().to_numpy(), traj_df[columns[-1]].dropna().to_numpy()
     #pdb.set_trace()
     m.plot(longs, lats, color='r', latlon=True)
     
     #m.drawgreatcircle(lon_min,lat_min, lon_max,lat_max, linewidth=2,color='b')
-    m.drawcoastlines()
+    try:
+        m.drawcoastlines()
+    except ValueError:
+        pass # no coast?
     m.drawcountries()
     m.drawmapboundary(fill_color='#99ffff')
     m.fillcontinents(color='#cc9966',lake_color='#99ffff')
@@ -122,16 +149,16 @@ def run_simulation(tf=100.):
 
 
 # running fdm with a script, yay!!!
-def run_simulation2(script_filename, tf):
+def run_simulation2(script_filename, tf, dbg=False):
     PATH_TO_JSBSIM_FILES="/home/poine/src/jsbsim"
     fdm = jsbsim.FGFDMExec(PATH_TO_JSBSIM_FILES) # this is needed for aircraft definitions ?
     fdm.load_script(script_filename)
 
     atm = p3_atm.AtmosphereCstWind()
     
-    dt = fdm.get_delta_t()
-    time = np.arange(0, tf, dt)
+    dt = fdm.get_delta_t(); time = np.arange(0, tf, dt)
     res = np.zeros((len(time), c_nb))
+    if dbg: _dbg = np.zeros((len(time), 4))
     fdm.run_ic()
 
     i=0
@@ -143,10 +170,16 @@ def run_simulation2(script_filename, tf):
         wind_ned = (0, 0, 0)#atm.get_wind_ned((0, 0, 0), 0)
         #for i, wcmp in enumerate(['atmosphere/wind-north-fps', 'atmosphere/wind-east-fps', 'atmosphere/wind-down-fps']):
         #    fdm[wcmp] = wind_ned[i]
+        #print(fdm['ap/altitude_hold'], fdm['ap/altitude_setpoint'], fdm['ap/throttle-cmd-norm'], fdm['ap/active-waypoint'])
+        #print(fdm['ap/airspeed_setpoint'], ap/airspeed_hold
         res[i] = fdm.get_sim_time(), lla[2], vels[0], euls[1], euls[2], euls[0], *accels, lla[0], lla[1]
+        if dbg: _dbg[i] = fdm['ap/altitude_hold'], fdm['ap/altitude_setpoint'], fdm['ap/throttle-cmd-norm'], fdm['ap/active-waypoint']
         i+=1
 
     if i < len(res): # truncate
         res = res[:i]
-        print('finished early')
-    return fdm, res
+        if dbg: _dbg = _dbg[:i]
+        print(f'finished early {i*dt} < {tf}')
+    #pdb.set_trace()
+    return (fdm, res, _dbg) if dbg else (fdm, res)
+    #return fdm, res  
